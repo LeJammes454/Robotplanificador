@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog
+from PIL import Image, ImageTk
 
 class VentanaPrincipal:
     def __init__(self, master):
@@ -13,10 +14,27 @@ class VentanaPrincipal:
         self.button_seleccionar_mapa.pack()
 
     def seleccionar_mapa(self):
-        file_path = filedialog.askopenfilename(title="Seleccionar Mapa", filetypes=[("Archivos de texto", "*.txt")])
+        file_path = filedialog.askopenfilename(title="Seleccionar Mapa", filetypes=[("Archivos de imagen", "*.jpg")])
         if file_path:
             print("Mapa seleccionado:", file_path)
-            # Aquí puedes realizar la lógica para cargar y procesar el mapa.
+            self.procesar_mapa(file_path)
+
+    def procesar_mapa(self, file_path):
+        # Abrir la imagen
+        img = Image.open(file_path)
+        
+        # Convertir la imagen a blanco y negro
+        img = img.convert("L")
+
+        # Redimensionar la imagen a 600x600
+        img = img.resize((600, 600), Image.ANTIALIAS)
+
+        # Crear una representación de la imagen para mostrar en la interfaz gráfica
+        img_tk = ImageTk.PhotoImage(img)
+
+        # Mostrar la imagen en la interfaz gráfica
+        self.label.config(image=img_tk)
+        self.label.image = img_tk
 
 # Crear la ventana principal
 root = tk.Tk()
