@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 import random
+import math
 
 class VentanaPrincipal:
     def __init__(self, master):
@@ -21,6 +22,8 @@ class VentanaPrincipal:
         self.button_iniciar.pack()
 
         self.img_tk = None  # Variable para almacenar la representación de la imagen
+        self.pixel_data = None  # Variable para almacenar la información de los píxeles
+        self.robot_radio = 10  # Radio del robot (ajústalo según tus necesidades)
 
     def seleccionar_mapa(self):
         file_path = filedialog.askopenfilename(title="Seleccionar Mapa", filetypes=[("Archivos de imagen", "*.jpg")])
@@ -44,17 +47,60 @@ class VentanaPrincipal:
         # Mostrar la imagen en el Canvas
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
 
+        # Almacenar la información de los píxeles de la imagen
+        self.pixel_data = list(img.getdata())
+
+    def es_posicion_valida(self, x, y):
+        # Comprobar si el píxel en la posición (x, y) es blanco (no obstáculo)
+        pixel_index = y * 600 + x
+        return self.pixel_data[pixel_index] > 128  # 128 es un umbral que puede ajustarse
+
+    def obtener_posicion_valida(self):
+        while True:
+            x = random.randint(0, 599)
+            y = random.randint(0, 599)
+            if self.es_posicion_valida(x, y):
+                return x, y
+
+    def distancia_entre_puntos(self, punto1, punto2):
+        x1, y1 = punto1
+        x2, y2 = punto2
+        return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+
+    def colisiona_con_obstaculo(self, x, y):
+        # Comprobar si el círculo con radio self.robot_radio en la posición (x, y) colisiona con un obstáculo
+        for i in range(-self.robot_radio, self.robot_radio + 1):
+            for j in range(-self.robot_radio, self.robot_radio + 1):
+                if 0 <= x + i < 600 and 0 <= y + j < 600:
+                    if not self.es_posicion_valida(x + i, y + j):
+                        return True
+        return False
+
+    def obtener_posicion_valida_con_radio(self):
+        while True:
+            x, y = self.obtener_posicion_valida()
+            if not self.colisiona_con_obstaculo(x, y):
+                return x, y
+
     def iniciar_simulacion(self):
         if self.img_tk:
-            # Crear un punto de meta verde (cubo) de manera aleatoria
-            meta_x = random.randint(0, 599)
-            meta_y = random.randint(0, 599)
-            self.canvas.create_rectangle(meta_x, meta_y, meta_x + 10, meta_y + 10, fill="green")
+            # Eliminar robots y metas anteriores, si los hay
+            self.canvas.delete("robot")
+            self.canvas.delete("meta")
 
-            # Crear un robot azul (círculo) de manera aleatoria
-            robot_x = random.randint(0, 599)
-            robot_y = random.randint(0, 599)
-            self.canvas.create_oval(robot_x, robot_y, robot_x + 20, robot_y + 20, fill="blue")
+            # Crear un robot azul (círculo) en una posición válida
+            robot_x, robot_y = self.obtener_posicion_valida_con_radio()
+            self.canvas.create_oval(robot_x - self.robot_radio, robot_y - self.robot_radio,
+                                    robot_x + self.robot_radio, robot_y + self.robot_radio, fill="blue", tags="robot")
+
+            # Crear un punto de meta verde (cubo) en una posición válida y alejada del robot
+            max_intentos = 100  # Número máximo de intentos para encontrar una posición alejada
+            for _ in range(max_intentos):
+                meta_x, meta_y = self.obtener_posicion_valida_con_radio()
+                distancia = self.distancia_entre_puntos((robot_x, robot_y), (meta_x, meta_y))
+                if distancia > 2 * self.robot_radio:  # Ajusta este valor según tus necesidades
+                    self.canvas.create_rectangle(meta_x, meta_y, meta_x + 10, meta_y + 10, fill="green", tags="meta")
+                    break
 
 # Crear la ventana principal
 root = tk.Tk()
