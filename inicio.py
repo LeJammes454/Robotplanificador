@@ -1,3 +1,4 @@
+
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
@@ -21,9 +22,14 @@ class VentanaPrincipal:
         self.button_iniciar = tk.Button(master, text="Iniciar", command=self.iniciar_simulacion)
         self.button_iniciar.pack()
 
+        self.button_linea_recta = tk.Button(master, text="Línea Recta", command=self.dibujar_linea_recta)
+        self.button_linea_recta.pack()
+
         self.img_tk = None  # Variable para almacenar la representación de la imagen
         self.pixel_data = None  # Variable para almacenar la información de los píxeles
         self.robot_radio = 10  # Radio del robot (ajústalo según tus necesidades)
+        self.robot_id = None  # ID del objeto del robot
+        self.meta_id = None  # ID del objeto de la meta
 
     def seleccionar_mapa(self):
         file_path = filedialog.askopenfilename(title="Seleccionar Mapa", filetypes=[("Archivos de imagen", "*.jpg")])
@@ -32,6 +38,11 @@ class VentanaPrincipal:
             self.procesar_mapa(file_path)
 
     def procesar_mapa(self, file_path):
+        # Eliminar objetos anteriores, si los hay
+        self.canvas.delete("all")
+        self.robot_id = None
+        self.meta_id = None
+
         # Abrir la imagen
         img = Image.open(file_path)
 
@@ -84,14 +95,14 @@ class VentanaPrincipal:
 
     def iniciar_simulacion(self):
         if self.img_tk:
-            # Eliminar robots y metas anteriores, si los hay
+            # Eliminar objetos anteriores, si los hay
             self.canvas.delete("robot")
             self.canvas.delete("meta")
 
             # Crear un robot azul (círculo) en una posición válida
             robot_x, robot_y = self.obtener_posicion_valida_con_radio()
-            self.canvas.create_oval(robot_x - self.robot_radio, robot_y - self.robot_radio,
-                                    robot_x + self.robot_radio, robot_y + self.robot_radio, fill="blue", tags="robot")
+            self.robot_id = self.canvas.create_oval(robot_x - self.robot_radio, robot_y - self.robot_radio,
+                                                    robot_x + self.robot_radio, robot_y + self.robot_radio, fill="blue", tags="robot")
 
             # Crear un punto de meta verde (cubo) en una posición válida y alejada del robot
             max_intentos = 100  # Número máximo de intentos para encontrar una posición alejada
@@ -99,8 +110,21 @@ class VentanaPrincipal:
                 meta_x, meta_y = self.obtener_posicion_valida_con_radio()
                 distancia = self.distancia_entre_puntos((robot_x, robot_y), (meta_x, meta_y))
                 if distancia > 2 * self.robot_radio:  # Ajusta este valor según tus necesidades
-                    self.canvas.create_rectangle(meta_x, meta_y, meta_x + 10, meta_y + 10, fill="green", tags="meta")
+                    self.meta_id = self.canvas.create_rectangle(meta_x, meta_y, meta_x + 10, meta_y + 10, fill="green", tags="meta")
                     break
+
+    def dibujar_linea_recta(self):
+        if self.robot_id is not None and self.meta_id is not None:
+            # Obtener las coordenadas del robot y la meta
+            robot_coords = self.canvas.coords(self.robot_id)
+            meta_coords = self.canvas.coords(self.meta_id)
+
+            # Calcular el punto medio entre el robot y la meta
+            punto_medio = ((robot_coords[0] + meta_coords[2]) / 2, (robot_coords[1] + meta_coords[3]) / 2)
+
+            # Dibujar una línea recta dorada entre el robot y la meta
+            self.canvas.create_line(robot_coords[0] + self.robot_radio, robot_coords[1] + self.robot_radio,
+                                    meta_coords[0] + 5, meta_coords[1] + 5, fill="gold")
 
 # Crear la ventana principal
 root = tk.Tk()
