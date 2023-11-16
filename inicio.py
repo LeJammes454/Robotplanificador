@@ -1,4 +1,3 @@
-
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
@@ -25,11 +24,22 @@ class VentanaPrincipal:
         self.button_linea_recta = tk.Button(master, text="Línea Recta", command=self.dibujar_linea_recta)
         self.button_linea_recta.pack()
 
+        self.label_num_anclas = tk.Label(master, text="Número de Anclas:")
+        self.label_num_anclas.pack()
+
+        self.entry_num_anclas = tk.Entry(master)
+        self.entry_num_anclas.pack()
+
+        self.button_anclas = tk.Button(master, text="Anclas", command=self.dibujar_anclas)
+        self.button_anclas.pack()
+
         self.img_tk = None  # Variable para almacenar la representación de la imagen
         self.pixel_data = None  # Variable para almacenar la información de los píxeles
         self.robot_radio = 10  # Radio del robot (ajústalo según tus necesidades)
         self.robot_id = None  # ID del objeto del robot
         self.meta_id = None  # ID del objeto de la meta
+        self.linea_recta_id = None  # ID del objeto de la línea recta
+        self.anclas_ids = []  # Lista para almacenar los IDs de los objetos de las anclas
 
     def seleccionar_mapa(self):
         file_path = filedialog.askopenfilename(title="Seleccionar Mapa", filetypes=[("Archivos de imagen", "*.jpg")])
@@ -42,6 +52,8 @@ class VentanaPrincipal:
         self.canvas.delete("all")
         self.robot_id = None
         self.meta_id = None
+        self.linea_recta_id = None
+        self.anclas_ids = []
 
         # Abrir la imagen
         img = Image.open(file_path)
@@ -98,6 +110,8 @@ class VentanaPrincipal:
             # Eliminar objetos anteriores, si los hay
             self.canvas.delete("robot")
             self.canvas.delete("meta")
+            self.canvas.delete("linea_recta")
+            self.canvas.delete("ancla")
 
             # Crear un robot azul (círculo) en una posición válida
             robot_x, robot_y = self.obtener_posicion_valida_con_radio()
@@ -115,6 +129,9 @@ class VentanaPrincipal:
 
     def dibujar_linea_recta(self):
         if self.robot_id is not None and self.meta_id is not None:
+            # Eliminar la línea anterior, si la hay
+            self.canvas.delete("linea_recta")
+
             # Obtener las coordenadas del robot y la meta
             robot_coords = self.canvas.coords(self.robot_id)
             meta_coords = self.canvas.coords(self.meta_id)
@@ -123,8 +140,16 @@ class VentanaPrincipal:
             punto_medio = ((robot_coords[0] + meta_coords[2]) / 2, (robot_coords[1] + meta_coords[3]) / 2)
 
             # Dibujar una línea recta dorada entre el robot y la meta
-            self.canvas.create_line(robot_coords[0] + self.robot_radio, robot_coords[1] + self.robot_radio,
-                                    meta_coords[0] + 5, meta_coords[1] + 5, fill="gold")
+            self.linea_recta_id = self.canvas.create_line(robot_coords[0] + self.robot_radio, robot_coords[1] + self.robot_radio,
+                                                          meta_coords[0] + 5, meta_coords[1] + 5, fill="gold", tags="linea_recta")
+
+    def dibujar_anclas(self):
+        num_anclas = int(self.entry_num_anclas.get())
+        if num_anclas > 0:
+            for _ in range(num_anclas):
+                ancla_x, ancla_y = self.obtener_posicion_valida()
+                ancla_id = self.canvas.create_oval(ancla_x - 3, ancla_y - 3, ancla_x + 3, ancla_y + 3, fill="red", tags="ancla")
+                self.anclas_ids.append(ancla_id)
 
 # Crear la ventana principal
 root = tk.Tk()
