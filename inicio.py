@@ -33,6 +33,9 @@ class VentanaPrincipal:
         self.button_anclas = tk.Button(master, text="Anclas", command=self.dibujar_anclas)
         self.button_anclas.pack()
 
+        self.button_mostrar_anclas = tk.Button(master, text="Mostrar Anclas", command=self.mostrar_anclas)
+        self.button_mostrar_anclas.pack()
+
         self.img_tk = None  # Variable para almacenar la representación de la imagen
         self.pixel_data = None  # Variable para almacenar la información de los píxeles
         self.robot_radio = 10  # Radio del robot (ajústalo según tus necesidades)
@@ -40,6 +43,8 @@ class VentanaPrincipal:
         self.meta_id = None  # ID del objeto de la meta
         self.linea_recta_id = None  # ID del objeto de la línea recta
         self.anclas_ids = []  # Lista para almacenar los IDs de los objetos de las anclas
+        self.num_anclas_ids = []  # Lista para almacenar los IDs de los números de las anclas
+        self.lista_anclas = []  # Lista para almacenar las ubicaciones de las anclas
 
     def seleccionar_mapa(self):
         file_path = filedialog.askopenfilename(title="Seleccionar Mapa", filetypes=[("Archivos de imagen", "*.jpg")])
@@ -54,6 +59,8 @@ class VentanaPrincipal:
         self.meta_id = None
         self.linea_recta_id = None
         self.anclas_ids = []
+        self.num_anclas_ids = []
+        self.lista_anclas = []
 
         # Abrir la imagen
         img = Image.open(file_path)
@@ -112,6 +119,7 @@ class VentanaPrincipal:
             self.canvas.delete("meta")
             self.canvas.delete("linea_recta")
             self.canvas.delete("ancla")
+            self.canvas.delete("num_ancla")
 
             # Crear un robot azul (círculo) en una posición válida
             robot_x, robot_y = self.obtener_posicion_valida_con_radio()
@@ -144,12 +152,27 @@ class VentanaPrincipal:
                                                           meta_coords[0] + 5, meta_coords[1] + 5, fill="gold", tags="linea_recta")
 
     def dibujar_anclas(self):
+        # Eliminar anclas anteriores, si las hay
+        self.canvas.delete("ancla")
+        self.canvas.delete("num_ancla")
+
         num_anclas = int(self.entry_num_anclas.get())
         if num_anclas > 0:
-            for _ in range(num_anclas):
+            for i in range(1, num_anclas + 1):
                 ancla_x, ancla_y = self.obtener_posicion_valida()
-                ancla_id = self.canvas.create_oval(ancla_x - 3, ancla_y - 3, ancla_x + 3, ancla_y + 3, fill="red", tags="ancla")
+                ancla_id = self.canvas.create_oval(ancla_x - 6, ancla_y - 6, ancla_x + 6, ancla_y + 6, fill="red", tags="ancla")
                 self.anclas_ids.append(ancla_id)
+
+                # Agregar número en el centro de la ancla
+                num_ancla_id = self.canvas.create_text(ancla_x, ancla_y, text=str(i), fill="black", font=("Arial", 8, "bold"), tags="num_ancla")
+                self.num_anclas_ids.append(num_ancla_id)
+
+                # Almacenar la ubicación de la ancla en la lista
+                self.lista_anclas.append({"Nombre": f"Ancla {i}", "Ubicacion": (ancla_x, ancla_y)})
+
+    def mostrar_anclas(self):
+        for ancla in self.lista_anclas:
+            print(f"{ancla['Nombre']}: {ancla['Ubicacion']}")
 
 # Crear la ventana principal
 root = tk.Tk()
