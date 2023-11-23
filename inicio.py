@@ -1,182 +1,60 @@
 import tkinter as tk
 from tkinter import filedialog
-from PIL import Image, ImageTk
-import random
-import math
+from PIL import Image, ImageTk, ImageOps
+import numpy
 
-class VentanaPrincipal:
-    def __init__(self, master):
-        self.master = master
-        master.title("Planificación de Trayectorias")
+def open_map():
+    file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg;*.jpeg;*.png")])
+    if file_path:
+        # Cargar la imagen
+        image = Image.open(file_path)
 
-        self.canvas = tk.Canvas(master, width=600, height=600)
-        self.canvas.pack()
+        # Convertir a escala de grises y luego binarizar
+        gray_image = ImageOps.grayscale(image)
+        binary_image = gray_image.point(lambda x: 0 if x < 128 else 255, '1')
 
-        self.label = tk.Label(master, text="¡Bienvenido al Planificador de Trayectorias!")
-        self.label.pack()
+        # Redimensionar y mostrar la imagen
+        resized_image = binary_image.resize((right_frame.winfo_width(), right_frame.winfo_height()), Image.Resampling.LANCZOS)
+        photo = ImageTk.PhotoImage(resized_image)
+        map_label = tk.Label(right_frame, image=photo)
+        map_label.image = photo
+        map_label.pack(fill="both", expand=True)
 
-        self.button_seleccionar_mapa = tk.Button(master, text="Seleccionar Mapa", command=self.seleccionar_mapa)
-        self.button_seleccionar_mapa.pack()
+        # Convertir a matriz para el algoritmo de planificación
+        map_matrix = numpy.array(binary_image)
 
-        self.button_iniciar = tk.Button(master, text="Iniciar", command=self.iniciar_simulacion)
-        self.button_iniciar.pack()
-
-        self.button_linea_recta = tk.Button(master, text="Línea Recta", command=self.dibujar_linea_recta)
-        self.button_linea_recta.pack()
-
-        self.label_num_anclas = tk.Label(master, text="Número de Anclas:")
-        self.label_num_anclas.pack()
-
-        self.entry_num_anclas = tk.Entry(master)
-        self.entry_num_anclas.pack()
-
-        self.button_anclas = tk.Button(master, text="Anclas", command=self.dibujar_anclas)
-        self.button_anclas.pack()
-
-        self.button_mostrar_anclas = tk.Button(master, text="Mostrar Anclas", command=self.mostrar_anclas)
-        self.button_mostrar_anclas.pack()
-
-        self.img_tk = None  # Variable para almacenar la representación de la imagen
-        self.pixel_data = None  # Variable para almacenar la información de los píxeles
-        self.robot_radio = 10  # Radio del robot (ajústalo según tus necesidades)
-        self.robot_id = None  # ID del objeto del robot
-        self.meta_id = None  # ID del objeto de la meta
-        self.linea_recta_id = None  # ID del objeto de la línea recta
-        self.anclas_ids = []  # Lista para almacenar los IDs de los objetos de las anclas
-        self.num_anclas_ids = []  # Lista para almacenar los IDs de los números de las anclas
-        self.lista_anclas = []  # Lista para almacenar las ubicaciones de las anclas
-
-    def seleccionar_mapa(self):
-        file_path = filedialog.askopenfilename(title="Seleccionar Mapa", filetypes=[("Archivos de imagen", "*.jpg")])
-        if file_path:
-            print("Mapa seleccionado:", file_path)
-            self.procesar_mapa(file_path)
-
-    def procesar_mapa(self, file_path):
-        # Eliminar objetos anteriores, si los hay
-        self.canvas.delete("all")
-        self.robot_id = None
-        self.meta_id = None
-        self.linea_recta_id = None
-        self.anclas_ids = []
-        self.num_anclas_ids = []
-        self.lista_anclas = []
-
-        # Abrir la imagen
-        img = Image.open(file_path)
-
-        # Convertir la imagen a blanco y negro
-        img = img.convert("L")
-
-        # Redimensionar la imagen a 600x600
-        img = img.resize((600, 600), resample=Image.BICUBIC)
-
-        # Crear una representación de la imagen para mostrar en la interfaz gráfica
-        self.img_tk = ImageTk.PhotoImage(img)
-
-        # Mostrar la imagen en el Canvas
-        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.img_tk)
-
-        # Almacenar la información de los píxeles de la imagen
-        self.pixel_data = list(img.getdata())
-
-    def es_posicion_valida(self, x, y):
-        # Comprobar si el píxel en la posición (x, y) es blanco (no obstáculo)
-        pixel_index = y * 600 + x
-        return self.pixel_data[pixel_index] > 128  # 128 es un umbral que puede ajustarse
-
-    def obtener_posicion_valida(self):
-        while True:
-            x = random.randint(0, 599)
-            y = random.randint(0, 599)
-            if self.es_posicion_valida(x, y):
-                return x, y
-
-    def distancia_entre_puntos(self, punto1, punto2):
-        x1, y1 = punto1
-        x2, y2 = punto2
-        return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
-    def colisiona_con_obstaculo(self, x, y):
-        # Comprobar si el círculo con radio self.robot_radio en la posición (x, y) colisiona con un obstáculo
-        for i in range(-self.robot_radio, self.robot_radio + 1):
-            for j in range(-self.robot_radio, self.robot_radio + 1):
-                if 0 <= x + i < 600 and 0 <= y + j < 600:
-                    if not self.es_posicion_valida(x + i, y + j):
-                        return True
-        return False
-
-    def obtener_posicion_valida_con_radio(self):
-        while True:
-            x, y = self.obtener_posicion_valida()
-            if not self.colisiona_con_obstaculo(x, y):
-                return x, y
-
-    def iniciar_simulacion(self):
-        if self.img_tk:
-            # Eliminar objetos anteriores, si los hay
-            self.canvas.delete("robot")
-            self.canvas.delete("meta")
-            self.canvas.delete("linea_recta")
-            self.canvas.delete("ancla")
-            self.canvas.delete("num_ancla")
-
-            # Crear un robot azul (círculo) en una posición válida
-            robot_x, robot_y = self.obtener_posicion_valida_con_radio()
-            self.robot_id = self.canvas.create_oval(robot_x - self.robot_radio, robot_y - self.robot_radio,
-                                                    robot_x + self.robot_radio, robot_y + self.robot_radio, fill="blue", tags="robot")
-
-            # Crear un punto de meta verde (cubo) en una posición válida y alejada del robot
-            max_intentos = 100  # Número máximo de intentos para encontrar una posición alejada
-            for _ in range(max_intentos):
-                meta_x, meta_y = self.obtener_posicion_valida_con_radio()
-                distancia = self.distancia_entre_puntos((robot_x, robot_y), (meta_x, meta_y))
-                if distancia > 2 * self.robot_radio:  # Ajusta este valor según tus necesidades
-                    self.meta_id = self.canvas.create_rectangle(meta_x, meta_y, meta_x + 10, meta_y + 10, fill="green", tags="meta")
-                    break
-
-    def dibujar_linea_recta(self):
-        if self.robot_id is not None and self.meta_id is not None:
-            # Eliminar la línea anterior, si la hay
-            self.canvas.delete("linea_recta")
-
-            # Obtener las coordenadas del robot y la meta
-            robot_coords = self.canvas.coords(self.robot_id)
-            meta_coords = self.canvas.coords(self.meta_id)
-
-            # Calcular el punto medio entre el robot y la meta
-            punto_medio = ((robot_coords[0] + meta_coords[2]) / 2, (robot_coords[1] + meta_coords[3]) / 2)
-
-            # Dibujar una línea recta dorada entre el robot y la meta
-            self.linea_recta_id = self.canvas.create_line(robot_coords[0] + self.robot_radio, robot_coords[1] + self.robot_radio,
-                                                          meta_coords[0] + 5, meta_coords[1] + 5, fill="gold", tags="linea_recta")
-
-    def dibujar_anclas(self):
-        # Eliminar anclas anteriores, si las hay
-        self.canvas.delete("ancla")
-        self.canvas.delete("num_ancla")
-
-        num_anclas = int(self.entry_num_anclas.get())
-        if num_anclas > 0:
-            for i in range(1, num_anclas + 1):
-                ancla_x, ancla_y = self.obtener_posicion_valida()
-                ancla_id = self.canvas.create_oval(ancla_x - 6, ancla_y - 6, ancla_x + 6, ancla_y + 6, fill="red", tags="ancla")
-                self.anclas_ids.append(ancla_id)
-
-                # Agregar número en el centro de la ancla
-                num_ancla_id = self.canvas.create_text(ancla_x, ancla_y, text=str(i), fill="black", font=("Arial", 8, "bold"), tags="num_ancla")
-                self.num_anclas_ids.append(num_ancla_id)
-
-                # Almacenar la ubicación de la ancla en la lista
-                self.lista_anclas.append({"Nombre": f"Ancla {i}", "Ubicacion": (ancla_x, ancla_y)})
-
-    def mostrar_anclas(self):
-        for ancla in self.lista_anclas:
-            print(f"{ancla['Nombre']}: {ancla['Ubicacion']}")
 
 # Crear la ventana principal
 root = tk.Tk()
-app = VentanaPrincipal(root)
+root.title("Ventana Principal")
+root.geometry("1200x790")
 
-# Iniciar el bucle principal
+# Marco izquierdo (fondo gris)
+left_frame = tk.Frame(root, width=250, height=790, bg="gray")
+left_frame.pack_propagate(False)
+left_frame.pack(side="left", fill="y")
+
+# Marco superior (fondo rojo)
+top_frame = tk.Frame(left_frame, height=90, bg="red")
+top_frame.pack(side="top", fill="x")
+
+# Marco medio (fondo verde)
+middle_frame = tk.Frame(left_frame, height=500, bg="green")
+middle_frame.pack(side="top", fill="x")
+
+# Botón para seleccionar el mapa
+select_map_button = tk.Button(middle_frame, text="Seleccionar mapa", command=open_map)
+select_map_button.pack(pady=10)
+
+# Marco inferior (fondo azul)
+bottom_frame = tk.Frame(left_frame, bg="blue")
+bottom_frame.pack(side="top", fill="both", expand=True)
+
+# Marco derecho (fondo azul claro)
+right_frame = tk.Frame(root, bg="lightblue")
+right_frame.pack(side="right", fill="both", expand=True)
+
+
+
+# Ejecutar la aplicación
 root.mainloop()
