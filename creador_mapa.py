@@ -68,7 +68,10 @@ def guardar_archivo_dialogo(cuadricula):
     ruta_archivo = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
     if ruta_archivo:
         guardar_en_csv(cuadricula, ruta_archivo)
+        pygame.quit()  # Cerrar Pygame
+        sys.exit()     # Salir del script
     root.destroy()
+
 
 
 # Función para dibujar el botón de guardar
