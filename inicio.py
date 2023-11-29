@@ -46,7 +46,7 @@ def seleccionar_y_mostrar_mapa():
         meta.place(x=meta._original_x, y=meta._original_y)
 
 def abrir_creador_mapa():
-        subprocess.Popen(["python", "c:/Users/xboxj/OneDrive/Documentos/Planificador/Robotplanificador/creador_mapa.py"])
+    subprocess.Popen(["python", "c:/Users/xboxj/OneDrive/Documentos/Planificador/Robotplanificador/creador_mapa.py"])
 
 def on_canvas_click(event):
     columna = event.x // tamaño_celda
@@ -139,8 +139,6 @@ def arrastrar_cuadro_en_cuadricula(event, cuadro_id):
     canvas.coords(cuadro_id, columna * tamaño_celda, fila * tamaño_celda, (columna + 1) * tamaño_celda, (fila + 1) * tamaño_celda)
 
 
-
-
 # Crear la ventana principal
 root = tk.Tk()
 root.title("Ventana Principal")
@@ -196,7 +194,6 @@ ini_button.pack(pady=10)
 right_frame = tk.Frame(root, bg="lightblue", width=right_frame_ancho, height=right_frame_alto)
 right_frame.pack(side="right", fill="none", expand=False)
 
-# Crear un lienzo en el marco derecho
 # Crear un lienzo en el marco derecho
 canvas = tk.Canvas(right_frame, bg="lightblue", width=right_frame_ancho, height=right_frame_alto)
 canvas.pack()
