@@ -124,12 +124,6 @@ def soltar_cuadro_en_cuadricula(event):
     elif widget == meta:
         meta_en_cuadricula = (fila, columna)
 
-def mover_cuadro_en_cuadricula(event):
-    # Identificar el cuadro sobre el que se ha hecho clic
-    cuadro_id = canvas.find_closest(event.x, event.y)[0]
-    if cuadro_id in [id_robot, id_meta]:
-        # Guardar la posición original por si se necesita mover de vuelta
-        cuadro_id._original_coords = canvas.coords(cuadro_id)
 
 def arrastrar_cuadro_en_cuadricula(event, cuadro_id):
     columna = event.x // tamaño_celda
