@@ -2,12 +2,16 @@ import csv
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
+import heapq
 import subprocess
 
-# Calcular las dimensiones de la cuadrícula
+
+# Configuraciones iniciales
 cuadricula_ancho = 40
 cuadricula_alto = 30
-tamaño_celda = 20  # Tamaño de cada celda de la cuadrícula en píxeles
+tamaño_celda = 20
+right_frame_ancho = cuadricula_ancho * tamaño_celda
+right_frame_alto = cuadricula_alto * tamaño_celda
 
 # Dimensiones del right_frame
 right_frame_ancho = cuadricula_ancho * tamaño_celda
@@ -42,8 +46,8 @@ def seleccionar_y_mostrar_mapa():
         dibujar_cuadricula(canvas, right_frame_ancho, right_frame_alto, tamaño_celda)
 
     # Restablecer la posición del robot y la meta
-        robot.place(x=robot._original_x, y=robot._original_y)
-        meta.place(x=meta._original_x, y=meta._original_y)
+    robot.place(x=robot._original_x, y=robot._original_y)
+    meta.place(x=meta._original_x, y=meta._original_y)
 
 def abrir_creador_mapa():
     subprocess.Popen(["python", "c:/Users/xboxj/OneDrive/Documentos/Planificador/Robotplanificador/creador_mapa.py"])
@@ -68,31 +72,26 @@ def realizar_arrastre(event):
 def reiniciarpos():
     global robot_en_cuadricula, meta_en_cuadricula
 
-    def borrar_de_cuadricula(fila, columna):
-        # Redibujar la celda completa con el color de fondo
-        canvas.create_rectangle(columna * tamaño_celda, fila * tamaño_celda, (columna + 1) * tamaño_celda, (fila + 1) * tamaño_celda, fill="white", outline="")
+    # Borrar el camino y las posiciones del robot/meta en la cuadrícula
+    for fila in range(cuadricula_alto):
+        for columna in range(cuadricula_ancho):
+            color_actual = colores_celdas[fila][columna]
+            # Redibujar solo las celdas que no son parte del mapa original
+            if color_actual != "black":
+                canvas.create_rectangle(columna * tamaño_celda, fila * tamaño_celda, (columna + 1) * tamaño_celda, (fila + 1) * tamaño_celda, fill="white", outline="")
+                colores_celdas[fila][columna] = "white"
 
-        # Redibujar las líneas de la cuadrícula para esta celda
-        canvas.create_line(columna * tamaño_celda, fila * tamaño_celda, columna * tamaño_celda, (fila + 1) * tamaño_celda, fill="#000000")
-        canvas.create_line(columna * tamaño_celda, fila * tamaño_celda, (columna + 1) * tamaño_celda, fila * tamaño_celda, fill="#000000")
-
-    # Borrar el robot/meta de la cuadrícula si están presentes
-    if robot_en_cuadricula:
-        fila, columna = robot_en_cuadricula
-        borrar_de_cuadricula(fila, columna)
-        robot_en_cuadricula = None
-    if meta_en_cuadricula:
-        fila, columna = meta_en_cuadricula
-        borrar_de_cuadricula(fila, columna)
-        meta_en_cuadricula = None
-
-    # Restablecer la posición del robot y la meta
+    # Restablecer las posiciones del robot y la meta
     robot.place(x=robot._original_x, y=robot._original_y)
     meta.place(x=meta._original_x, y=meta._original_y)
 
-# Identificadores para los cuadros en la cuadrícula
-robot_en_cuadricula = None
-meta_en_cuadricula = None
+    # Identificadores de posición en la cuadrícula
+    robot_en_cuadricula = None
+    meta_en_cuadricula = None
+
+    # Redibujar la cuadrícula
+    dibujar_cuadricula(canvas, right_frame_ancho, right_frame_alto, tamaño_celda)
+
 
 def colocar_cuadro_en_cuadricula(fila, columna, color):
     return canvas.create_rectangle(columna * tamaño_celda, fila * tamaño_celda, (columna + 1) * tamaño_celda, (fila + 1) * tamaño_celda, fill=color, outline="")
@@ -119,7 +118,7 @@ def soltar_cuadro_en_cuadricula(event):
         # Devolver el cuadro a su posición original si se suelta fuera de la cuadrícula
         widget.place(x=widget._original_x, y=widget._original_y)
 
-         # Actualizar la ubicación del robot/meta en la cuadrícula
+        # Actualizar la ubicación del robot/meta en la cuadrícula
     if widget == robot:
         robot_en_cuadricula = (fila, columna)
     elif widget == meta:
@@ -131,64 +130,147 @@ def mover_cuadro_en_cuadricula(event):
     if cuadro_id in [id_robot, id_meta]:
         # Guardar la posición original por si se necesita mover de vuelta
         cuadro_id._original_coords = canvas.coords(cuadro_id)
-        canvas.bind("<B1-Motion>", lambda e: arrastrar_cuadro_en_cuadricula(e, cuadro_id))
 
 def arrastrar_cuadro_en_cuadricula(event, cuadro_id):
     columna = event.x // tamaño_celda
     fila = event.y // tamaño_celda
     canvas.coords(cuadro_id, columna * tamaño_celda, fila * tamaño_celda, (columna + 1) * tamaño_celda, (fila + 1) * tamaño_celda)
 
+def calcular_heuristica(p1, p2):
+    # Calcular la distancia de Manhattan entre p1 y p2
+    return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+
+def buscar_camino(inicio, fin):
+    # Lista de nodos abiertos y cerrados
+    abiertos = []
+    cerrados = set()
+    heapq.heappush(abiertos, (0, inicio))
+
+    # Diccionario para rastrear el camino
+    camino = {}
+    costos_g = {inicio: 0}
+
+    while abiertos:
+        _, actual = heapq.heappop(abiertos)
+        if actual == fin:
+            # Reconstruir el camino
+            recorrido = []
+            while actual in camino:
+                recorrido.append(actual)
+                actual = camino[actual]
+            return recorrido[::-1]  # Invertir el camino
+
+        cerrados.add(actual)
+        for vecino in obtener_vecinos(actual):
+            if vecino in cerrados:
+                continue
+
+            nuevo_costo_g = costos_g[actual] + 1  # Suponemos un costo de 1 por movimiento
+            if vecino not in costos_g or nuevo_costo_g < costos_g[vecino]:
+                costos_g[vecino] = nuevo_costo_g
+                f = nuevo_costo_g + calcular_heuristica(fin, vecino)
+                heapq.heappush(abiertos, (f, vecino))
+                camino[vecino] = actual
+
+    return None
+
+def obtener_vecinos(nodo):
+    # Devuelve los vecinos navegables (no negros) de un nodo en la cuadrícula
+    vecinos = []
+    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Direcciones: arriba, abajo, izquierda, derecha
+        x, y = nodo[0] + dx, nodo[1] + dy
+        if 0 <= x < cuadricula_ancho and 0 <= y < cuadricula_alto and colores_celdas[y][x] != "black":
+            vecinos.append((x, y))
+    return vecinos
+
+def animar_camino(camino, indice=0):
+    if indice < len(camino):
+        columna, fila = camino[indice]
+        # Colorear la celda del camino
+        canvas.create_rectangle(columna * tamaño_celda, fila * tamaño_celda, (columna + 1) * tamaño_celda, (fila + 1) * tamaño_celda, fill="purple", outline="")
+        # Llamar a esta misma función después de un breve retraso para la siguiente celda
+        root.after(100, animar_camino, camino, indice + 1)
+
+def iniciar_simulacion():
+    if robot_en_cuadricula and meta_en_cuadricula:
+        fila_robot, columna_robot = robot_en_cuadricula
+        fila_meta, columna_meta = meta_en_cuadricula
+        # Obtener el camino
+        camino = buscar_camino((columna_robot, fila_robot), (columna_meta, fila_meta))
+        if camino:
+            animar_camino(camino)
 
 # Crear la ventana principal
 root = tk.Tk()
-root.title("Ventana Principal")
+root.title("Robot Trazador de Ruta")
 root.geometry(f"{250 + right_frame_ancho}x{max(400, right_frame_alto)}")
 
-# Marco izquierdo (fondo gris)
+# Estilos para los botones y etiquetas
+estilo_boton = {'bg': '#4CAF50', 'fg': 'white', 'padx': 10, 'pady': 5}
+estilo_titulo = {'font': ('Helvetica', 16, 'bold')}
+
+# Marco izquierdo (fondo azul)
 left_frame = tk.Frame(root, width=250, height=790, bg="gray")
 left_frame.pack_propagate(False)
 left_frame.pack(side="left", fill="y")
 
-# Marco superior (fondo rojo)
-top_frame = tk.Frame(left_frame, height=90, bg="red")
+# Marco superior
+top_frame = tk.Frame(left_frame, bg="#D3D3D3")
 top_frame.pack(side="top", fill="x")
 
-# Marco medio (fondo verde)
-middle_frame = tk.Frame(left_frame, height=500, bg="green")
-middle_frame.pack(side="top", fill="x")
+# Título e integrantes
+titulo_label = tk.Label(top_frame, text="Robot Trazador de Ruta", **estilo_titulo)
+titulo_label.pack(pady=10)
+integrantes_label = tk.Label(top_frame, text="Integrantes:\nJaime León Ángeles\nBryan Paramo Paramo\nArmando Jair Rivera Tinoco", bg="#D3D3D3")
+integrantes_label.pack()
 
-# Botón para seleccionar el mapa
-create_map_button = tk.Button(middle_frame, text="Crear mapa", command=abrir_creador_mapa)
+# Marco para los botones
+buttons_frame = tk.Frame(left_frame, bg="#D3D3D3")
+buttons_frame.pack(fill="x")
 
-create_map_button.pack(pady=10)
-# Botón para seleccionar el mapa
-select_map_button = tk.Button(middle_frame, text="Seleccionar mapa", command=seleccionar_y_mostrar_mapa)
-select_map_button.pack(pady=10)
+# Botones
+create_map_button = tk.Button(buttons_frame, text="Crear mapa", command=abrir_creador_mapa, **estilo_boton)
+create_map_button.pack(fill="x", pady=5)
 
-# Marco inferior (fondo azul)
-bottom_frame = tk.Frame(left_frame, bg="blue")
-bottom_frame.pack(side="top", fill="both", expand=True)
+select_map_button = tk.Button(buttons_frame, text="Seleccionar mapa", command=seleccionar_y_mostrar_mapa, **estilo_boton)
+select_map_button.pack(fill="x", pady=5)
+
+ini_button = tk.Button(buttons_frame, text="Reiniciar", command=reiniciarpos, **estilo_boton)
+ini_button.pack(fill="x", pady=5)
+
+start_button = tk.Button(buttons_frame, text="Iniciar", command=iniciar_simulacion, **estilo_boton)
+start_button.pack(fill="x", pady=5)
 
 # Crear cuadros para el robot y la meta
-robot = tk.Label(bottom_frame, bg="green", width=4, height=2)
-robot.place(x=10, y=10)
+robot = tk.Label(root, bg="green", width=4, height=2)
 robot._original_x = 10
-robot._original_y = 10
+robot._original_y = 350
+robot.place(x=robot._original_x, y=robot._original_y)
 robot.bind("<Button-1>", iniciar_arrastre)
 robot.bind("<B1-Motion>", realizar_arrastre)
 robot.bind("<ButtonRelease-1>", soltar_cuadro_en_cuadricula)
 
-meta = tk.Label(bottom_frame, bg="orange", width=4, height=2)
-meta.place(x=60, y=10)
+meta = tk.Label(root, bg="red", width=4, height=2)
 meta._original_x = 60
-meta._original_y = 10
+meta._original_y = 350
+meta.place(x=meta._original_x, y=meta._original_y)
 meta.bind("<Button-1>", iniciar_arrastre)
 meta.bind("<B1-Motion>", realizar_arrastre)
 meta.bind("<ButtonRelease-1>", soltar_cuadro_en_cuadricula)
 
-# Botón para seleccionar el mapa
-ini_button = tk.Button(bottom_frame, text="Reiniciar", command=reiniciarpos)
-ini_button.pack(pady=10)
+# Marco medio (ahora gris) para los robots y la meta
+middle_frame = tk.Frame(left_frame, height=500, bg="#A9A9A9")
+middle_frame.pack(side="top", fill="x")
+
+# Marco inferior (fondo gris)
+bottom_frame = tk.Frame(left_frame, bg="light grey")
+bottom_frame.pack(side="top", fill="both", expand=True)
+
+# Variables para almacenar las posiciones de robots y meta
+robots_en_cuadricula = []  # Ahora es una lista
+meta_en_cuadricula = None
+
+
 
 # Marco derecho (fondo azul claro)
 right_frame = tk.Frame(root, bg="lightblue", width=right_frame_ancho, height=right_frame_alto)
